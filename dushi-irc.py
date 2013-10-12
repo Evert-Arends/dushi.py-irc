@@ -10,10 +10,9 @@ import sys
 import random
 import time
 
+USER = 'trolletje'
 IDENT = 'bontkraagIRC'
-HOST = 'irc.test.nl'
 PORT = 6667
-CHANNEL = '#test'
 VERBOSE = True
 CMD = '!dushi'
 
@@ -27,7 +26,7 @@ class colors:
 
 class Boat():
     def __init__(self, client, host, channel, port, debug=True):
-        self.username, self.ident = random.choice(NICKS), 'dushi'
+        self.username, self.ident = random.choice(NICKS), USER
         self.host, self.channel, self.port = host, channel, port
 
         self.debug = debug
@@ -105,7 +104,7 @@ class Boat():
             if c == 'PING':
                 self.ping(data)
 
-            elif c == 'KICK' and cmd['args'][1] == self.username:  # :((
+            elif c == 'KICK' and arg[1] == self.username:  # :((
                 self.join()
                 self.send(random.choice(KICKS))
 
@@ -121,18 +120,28 @@ class Boat():
 
                             self.send('-!- ' + x['RESULT']) \
                                 if x and not 'ERROR' in x and 'RESULT' in x else None
+                            return
                         else:
                             self.send('zelluf')
+                            return
+
+                    if arg[1].startswith(self.username):
+                        self.send('y0w')
+                        return
+                    elif self.username in msg:
+                        self.send('zelluf')
+                        return
 
                     for k, v in RESPONSES.iteritems():
                         if k in msg:
                             self.send(v)
-                            break
+                            return
 
     def send(self, message):
         self.irc.send('PRIVMSG %s %s\r\n' % (self.channel, message)) if self.connected else None
 
     def nick(self, nickname):
+        self.username = nickname
         self.irc.send('NICK %s\r\n' % nickname)
 
     def dushi(self, message):
@@ -179,7 +188,6 @@ RESPONSES = {'waz met jou': 'waz met deze',
              'waz met deze': 'waz met jou',
              'skeere tijden': 'w0rd',
              'skeer': 'j4 G',
-             'ewa': 'faffie',
              'a zemmel': ':@',
              'zemmel': 'o',
              'jwz': 'iwz',
@@ -190,6 +198,9 @@ RESPONSES = {'waz met jou': 'waz met deze',
 KICKS = ['wholla', 'ewa', 'lief doen', 'NORMAAL DOEN', 'ohai', 'waz met deze', 'waz met die', '...', 'k', ':((((']
 
 if __name__ == '__main__':
+    HOST = sys.argv[1]
+    CHANNEL = sys.argv[2]
+
     dushi = Boat(client=IDENT,
                  host=HOST,
                  channel=CHANNEL,
