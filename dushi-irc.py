@@ -133,9 +133,9 @@ class Boat():
             if c == 'PING':
                 self.ping(data)
 
-            elif c == 'KICK' and cmd['args'][1] == self.username:
+            elif c == 'KICK' and cmd['args'][1] == self.username:  # :((
                 self.join()
-                self.send('wholla')
+                self.send(random.choice(KICKS))
 
             elif c == 'PRIVMSG' and not cmd['user'] == self.username:
                 if arg[0] == self.channel:
