@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # D&R (Death and Repudiation) License
 # ===================================
 #
@@ -26,11 +27,6 @@
 # revised law that (1) expands the statement "fullest extent of the law" to encompass
 # an infinite duration of infinite punishments and (2) exacts said punishments
 # upon all parties (related or non-related).
-
-#!/usr/bin/python
-__author__ = "dsc"
-__copyright__ = "R&D"
-__credits__ = ["Wazakindjes"]
 __version__ = "13 okt 2013"
 from threading import Thread
 from datetime import datetime
@@ -42,6 +38,11 @@ import sys
 import random
 import time
 
+IDENT = 'bontkraagIRC'
+HOST = 'irc.test.nl'
+PORT = 6667
+CHANNEL = '#test'
+VERBOSE = True
 CMD = '!dushi'
 
 class colors:
@@ -217,19 +218,10 @@ RESPONSES = {'waz met jou': 'waz met deze',
 KICKS = ['wholla', 'ewa', 'lief doen', 'NORMAAL DOEN', 'ohai', 'waz met deze', 'waz met die', '...', 'k', ':((((']
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Ewa")
-    parser.add_argument('-n ', '--host', metavar="host", help="IRC host", required=True)
-    parser.add_argument('-c ', '--channel', metavar="channel", help="IRC channel", required=True)
-    parser.add_argument('-i ', '--ident', metavar="ident", help="IRC client id", default='bontkraagIRC')
-    parser.add_argument('-p ', '--port', metavar="port", help="IRC port", default=6667)
-    parser.add_argument('-v ', '--verbose', metavar="verbose", help="debug output", default=True)
-
-    args = parser.parse_args()
-
-    dushi = Boat(client=args.ident,
-                 host=args.host,
-                 channel=args.channel,
-                 port=args.port,
-                 debug=args.verbose)
+    dushi = Boat(client=IDENT,
+                 host=HOST,
+                 channel=CHANNEL,
+                 port=PORT,
+                 debug=VERBOSE)
 
     dushi.doe_ding()
