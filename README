@@ -1,3 +1,3 @@
 dushi.py-irc
 ========
-    python dushi-irc.py irc.test.nl #test
+    ~$ python dushi-irc.py irc.test.nl #test
