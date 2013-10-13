@@ -2,9 +2,13 @@ dushi.py-irc
 ========
 ![ScreenShot](http://i.imgur.com/UTNGuqw.png)
 
-Jwz:
-    	~$ python dushi-irc.py HOST PORT CHANNEL'
-Run die ding:
-    	~$ python dushi-irc.py irc.test.nl 6667 '#test'
-Hossel die smatje op de achtergrond:
-    	~$ nohup python dushi-irc.py irc.test.nl 6667 '#test' &
+    python dushi-irc.py HOST PORT CHANNEL
+Net pindakaas gegeten
+
+    python dushi-irc.py irc.test.nl 6667 '#test'
+Doe die ding
+
+    nohup python dushi-irc.py irc.test.nl 6667 '#test' &
+Hossel die background smatje :$
+
+Veel plezir!!
