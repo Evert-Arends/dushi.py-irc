@@ -17,6 +17,23 @@ PORT = 6667
 VERBOSE = True
 CMD = '!dushi'
 
+jwz = '\033[93mjwz\033[92m'
+spam = '''\033[92m
+ +-----------------------------------------------------------------+
+ |          __           __    _         %s         _    %s      |
+ | %s ____/ /_  _______/ /_  (_) ____  __  __      (_)_________   |
+ |    / __  / / / / ___/ __ \/ / / __ \/ / / /_____/ / ___/ ___/   |
+ |   / /_/ / /_/ (__  ) / / / / / /_/ / /_/ /_____/ / /  / /__     |
+ |   \__,_/\__,_/____/_/ /_/_(_) .___/\__, /     /_/_/   \___/     |
+ |              %s           /_/    /____/                        |
+ | %s                                               %s           |
+ |  deze irc baots is rustikrustig, gwon voor die \033[93mekte ekte\033[92m chans  |
+ |                         -}bam G{-                  \033[93m%s\033[92m  |
+ +-----------------------------------------------------------------+
+\033[0m\n''' % (jwz, jwz, jwz, jwz, jwz, jwz, __version__)
+for a in ['|', '+', '-']:
+    spam = spam.replace(a, '\033[94m%s\033[92m' % a)
+
 class colors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -218,6 +235,8 @@ RESPONSES = {'waz met jou': 'waz met deze',
 KICKS = ['wholla', 'ewa', 'lief doen', 'NORMAAL DOEN', 'ohai', 'waz met deze', 'waz met die', '...', 'k', ':((((']
 
 if __name__ == '__main__':
+    print spam
+
     p = argparse.ArgumentParser()
     p.add_argument('host', type=str, help='host')
     p.add_argument('port', type=int, help='port')
