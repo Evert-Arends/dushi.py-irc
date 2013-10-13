@@ -27,10 +27,14 @@ spam = '''\033[92m
  |   \__,_/\__,_/____/_/ /_/_(_) .___/\__, /     /_/_/   \___/     |
  |              %s           /_/    /____/                        |
  | %s                                               %s           |
- |  deze irc baots is rustikrustig, gwon voor die \033[93mekte ekte\033[92m chans  |
- |                         -}bam G{-                  \033[93m%s\033[92m  |
+ |    jeweet gew0n tawn2lauwe ircbots voor die \033[93mekte ekte\033[92m chans     |
+ |                         -}bam G{-                               |
  +-----------------------------------------------------------------+
-\033[0m\n''' % (jwz, jwz, jwz, jwz, jwz, jwz, __version__)
+        | USaGe: ./%s [host] [port] [channel]            |
+        +----------------------------------------------------------+
+                                                     | \033[93m%s\033[92m |
+                                                     +--------------+\033[0m\n'''\
+       % (jwz, jwz, jwz, jwz, jwz, jwz, sys.argv[0], __version__)
 for a in ['|', '+', '-']:
     spam = spam.replace(a, '\033[94m%s\033[92m' % a)
 
