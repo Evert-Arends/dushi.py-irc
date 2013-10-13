@@ -8,3 +8,7 @@ Run die ding:
     ~$ python dushi-irc.py irc.test.nl 6667 '#test'
 Hossel die smatje op de achtergrond:
     ~$ nohup python dushi-irc.py irc.test.nl 6667 '#test' &
+    
+
+	Beta 0.7
+	http://dushi.nattewasbeer.nl/
