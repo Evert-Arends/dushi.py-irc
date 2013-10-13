@@ -218,13 +218,16 @@ RESPONSES = {'waz met jou': 'waz met deze',
 KICKS = ['wholla', 'ewa', 'lief doen', 'NORMAAL DOEN', 'ohai', 'waz met deze', 'waz met die', '...', 'k', ':((((']
 
 if __name__ == '__main__':
-    HOST = sys.argv[1]
-    CHANNEL = sys.argv[2]
+    p = argparse.ArgumentParser()
+    p.add_argument('host', type=str, help='host')
+    p.add_argument('port', type=int, help='port')
+    p.add_argument('channel', type=str, help='channel')
+    args = p.parse_args()
 
     dushi = Boat(client=IDENT,
-                 host=HOST,
-                 channel=CHANNEL,
-                 port=PORT,
+                 host=args.host,
+                 channel=args.channel,
+                 port=args.port,
                  debug=VERBOSE)
 
     dushi.doe_ding()
