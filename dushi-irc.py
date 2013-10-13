@@ -10,6 +10,7 @@ import sys
 import random
 import time
 
+ADMIN_PASS = 'blabla'
 USER = 'trolletje'
 IDENT = 'bontkraagIRC'
 PORT = 6667
@@ -30,6 +31,7 @@ class Boat():
         self.host, self.channel, self.port = host, channel, port
 
         self.debug = debug
+        self.hostmask = True
 
         self.connected = False
         self.client = client
@@ -81,7 +83,7 @@ class Boat():
 
             self.join()
 
-        if data.startswith('PING'):
+        if 'PING' in data:
             self.ping(data)
         else:
             self.jwz(data)
@@ -91,7 +93,7 @@ class Boat():
             self.log("Pong of ", data)
 
         try:
-            self.irc.send('PONG %s\r\n' % data.split()[1])
+            self.irc.send('PONG %s\r\n' % self.host)
         except IndexError:
             self.irc.send('EWA PONG!')
 
@@ -120,10 +122,9 @@ class Boat():
 
                             self.send('-!- ' + x['RESULT']) \
                                 if x and not 'ERROR' in x and 'RESULT' in x else None
-                            return
                         else:
                             self.send('zelluf')
-                            return
+                        return
 
                     if arg[1].startswith(self.username):
                         self.send('y0w')
@@ -133,16 +134,31 @@ class Boat():
                         return
 
                     for k, v in RESPONSES.iteritems():
-                        if k in msg:
+                        if k in msg.lower():
                             self.send(v)
                             return
+                else:
+                    if arg[0] == self.username and len(arg) >= 3:
+                        arg[1] = arg[1][1:]
+
+                        if arg[1] == ADMIN_PASS:
+                            if arg[2] == 'host':
+                                self.vhost()
+                            if arg[2] == 'nick' and len(arg) == 4:
+                                self.nick(arg[3])
 
     def send(self, message):
-        self.irc.send('PRIVMSG %s %s\r\n' % (self.channel, message)) if self.connected else None
+        self.irc.send('PRIVMSG %s %s\r\n' % (self.channel, message)) \
+            if self.connected else None
 
-    def nick(self, nickname):
-        self.username = nickname
-        self.irc.send('NICK %s\r\n' % nickname)
+    def nick(self, username):
+        self.username = username
+        self.irc.send('NICK %s\r\n' % username)
+
+    def vhost(self):
+        self.hostmask = True if not self.hostmask else False
+        self.irc.send('MODE %s +x\r\n' % self.username) \
+            if self.hostmask else self.irc.send('MODE %s -x\r\n' % self.username)
 
     def dushi(self, message):
         try:
@@ -186,9 +202,13 @@ NICKS = ['zemmel', 'sahbi', 'wasbeer', 'dushi', 'lobbi',
 
 RESPONSES = {'waz met jou': 'waz met deze',
              'waz met deze': 'waz met jou',
+             'waz met die': 'waz met deze',
+             'waz met haar': 'waz met die sma',
+             'wat is deze': 'waz met die?',
              'skeere tijden': 'w0rd',
+             'wat is mis met jou': 'waz met jou',
              'skeer': 'j4 G',
-             'a zemmel': ':@',
+             'a zemmel': 'dez ezedjief ek tabra a zemml',
              'zemmel': 'o',
              'jwz': 'iwz',
              'jwt': 'iwz',
