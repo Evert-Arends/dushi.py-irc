@@ -142,7 +142,7 @@ class Boat():
             #     if self.username == user:
             #         self.send('eh')
 
-            elif cmd == 'KICK':
+            if cmd == 'KICK':
                 if self.username == arg[1]:
                     self.kicked(user, data)
             if cmd == 'PRIVMSG' \
