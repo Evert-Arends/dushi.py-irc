@@ -1,5 +1,5 @@
 #!/usr/bin/python
-__version__ = "13 okt 2013"
+__version__ = "16 okt 2013"
 from threading import Thread
 from datetime import datetime
 import argparse
@@ -9,13 +9,6 @@ import json
 import sys
 import random
 import time
-
-ADMIN_PASS = 'blabla'
-USER = 'trolletje'
-IDENT = 'bontkraagIRC'
-PORT = 6667
-VERBOSE = True
-CMD = '!dushi'
 
 jwz = '\033[93mjwz\033[92m'
 spam = '''\033[92m
@@ -33,10 +26,27 @@ spam = '''\033[92m
         | USaGe: ./%s [host] [port] [channel]            |
         +----------------------------------------------------------+
                                                      | \033[93m%s\033[92m |
-                                                     +--------------+\033[0m\n'''\
+                                                     +-------------+\033[0m\n'''\
        % (jwz, jwz, jwz, jwz, jwz, jwz, sys.argv[0], __version__)
 for a in ['|', '+', '-']:
     spam = spam.replace(a, '\033[94m%s\033[92m' % a)
+
+# veilig om te veranderen
+ADMIN_PASS = 'blabla'
+USER = 'trolletje'
+IDENT = 'bontkraagIRC'
+PORT = 6667
+DEBUG = True
+
+CMD = '!dushi'
+CMD_TRANSLATE = CMD
+CMD_SET = '%s+' % CMD
+CMD_UNSET = '%s-' % CMD
+CMD_GET = '%s?' % CMD
+
+# dit hieronder niet veranderen
+APIS = []
+API_PASS = ''
 
 class colors:
     HEADER = '\033[95m'
@@ -109,6 +119,11 @@ class Boat():
         else:
             self.jwz(data)
 
+        if data.startswith(':') and self.username in data and ':Nickname is already in use.' in data:
+            if not 'PRIVMSG %s' % self.channel in data:
+                self.nick(random.choice(NICKS))
+                return
+
     def ping(self, data):
         if self.debug:
             self.log("Pong of ", data)
@@ -119,54 +134,132 @@ class Boat():
             self.irc.send('EWA PONG!')
 
     def jwz(self, data):
-        cmd = self.parse(data)
-        if cmd:
-            c = cmd['cmd']
-            arg = cmd['args']
+        user, cmd, arg = self.parse(data)
+        if user and cmd and arg:
+            user = user[1:] if user.startswith(':') else user
 
-            if c == 'PING':
-                self.ping(data)
+            # if cmd == 'JOIN':
+            #     if self.username == user:
+            #         self.send('eh')
 
-            elif c == 'KICK' and arg[1] == self.username:  # :((
-                self.join()
-                self.send(random.choice(KICKS))
+            elif cmd == 'KICK':
+                if self.username == arg[1]:
+                    self.kicked(user, data)
+            if cmd == 'PRIVMSG' \
+                and arg[0] == self.channel \
+                and not user == self.username:
 
-            elif c == 'PRIVMSG' and not cmd['user'] == self.username:
-                if arg[0] == self.channel:
-                    arg[1] = arg[1][1:]
-                    msg = ' '.join(arg[1:])
+                arg[1] = arg[1][1:]
+                msg = ' '.join(arg[1:])
 
-                    if arg[1] == CMD:
-                        if len(arg) >= 3:
-                            x = self.dushi(msg[len(CMD):]) \
-                                if len(msg) >= len(CMD) + 3 else False
-
-                            self.send('-!- ' + x['RESULT']) \
-                                if x and not 'ERROR' in x and 'RESULT' in x else None
-                        else:
-                            self.send('zelluf')
-                        return
-
-                    if arg[1].startswith(self.username):
-                        self.send('y0w')
-                        return
-                    elif self.username in msg:
+                if arg[1] == CMD_TRANSLATE:
+                    if len(arg) < 3:
                         self.send('zelluf')
                         return
+                    x = self.post('INPUT=%s' % msg[len(CMD_TRANSLATE):]) \
+                        if len(msg) >= len(CMD_TRANSLATE) + 3 else False
 
-                    for k, v in RESPONSES.iteritems():
-                        if k in msg.lower():
-                            self.send(v)
+                    self.send('-!- ' + x['RESULT']) \
+                        if x and not 'ERROR' in x and 'RESULT' in x else None
+
+                elif arg[1] == CMD_GET and APIS: # to-do: alphanummeric only
+                    msg = msg[len(CMD_GET):]
+
+                    if not msg.startswith(' '):
+                        self.send('JAWAT')
+                        return
+
+                    k = msg[1:]
+                    if len(k) <= 2:
+                        self.send('te kort.')
+                        return
+
+                    for url in APIS:
+                        r = self.post('PASS=%s&GET=%s' % (API_PASS, k), url)
+                        if r == 'NONE':
+                            self.send('Dushi voor \'%s\' niet gevonden.' % k)
                             return
-                else:
-                    if arg[0] == self.username and len(arg) >= 3:
-                        arg[1] = arg[1][1:]
+                        else:
+                            keys = '%s:  ' % k
+                            for i in range(0, len(r)):
+                                keys += '%s. %s ' % (str(i), r[i])
 
-                        if arg[1] == ADMIN_PASS:
-                            if arg[2] == 'host':
-                                self.vhost()
-                            if arg[2] == 'nick' and len(arg) == 4:
-                                self.nick(arg[3])
+                            self.send(keys)
+                            return
+                    return
+
+                elif arg[1] == CMD_UNSET and APIS:
+                    msg = msg[len(CMD_UNSET):]
+
+                    if not msg.startswith(' ') or len(msg[1:].split(' ', 2)) != 2:
+                        self.send('%s <key> <nummer>' % CMD_UNSET)
+                        return
+
+                    msg = msg[1:].split(' ', 2)
+                    k = msg[0]
+                    v = msg[1]
+
+                    try:
+                        v = int(v)
+                    except:
+                        self.send('%s: vrind, hoe is \'%s\' een nummer?' % (user, v))
+                        return
+                    finally:
+                        for url in APIS:
+                            r = self.post('PASS=%s&UNSET=%s %s' % (API_PASS, k, v), url)
+                            if r == 'NOT FOUND':
+                                self.send('Key of nummer niet gevonden.')
+                                return
+                            else:
+                                self.send('Bam.')
+
+                elif arg[1] == CMD_SET and APIS:
+                    if len(msg) >= len(CMD_SET) + 3:
+                        msg = msg[len(CMD_SET):]
+
+                        if not msg.startswith(' '):
+                            self.send('%s, waz met deze' % user)
+                            return
+                        if not '=' in msg:
+                            self.send('Je vergat de \'=\', ei.')
+                            return
+
+                        k, v = msg.split('=', 1)
+
+                        if len(k) >= 15 or len(v) >= 15:
+                            self.send('doe es kortere defs submitten %s G' % user)
+
+                        for url in APIS:
+                            r = self.post('PASS=%s&SET=%s=%s' % (API_PASS, k, v), url)
+                            if r == 'DUPLICATE':
+                                self.send('Duplicate.')
+                            elif r == 'OK':
+                                self.send('Toegevoegdt.')
+                        return
+                    else:
+                        self.send('te weinig chars voor key ;@')
+                        return
+
+                if arg[1].lower().startswith(self.username):
+                    self.send(random.choice(random.choice(RESPONSES_HI)))
+                    return
+                elif self.username in msg.lower():
+                    self.send('zelluf')
+                    return
+
+                for i in RESPONSES:
+                    if i[0] in msg.lower():
+                        self.send(random.choice(i[1]))
+                        return
+            else:
+                if arg[0] == self.username and len(arg) >= 3:
+                    arg[1] = arg[1][1:]
+
+                    if arg[1] == ADMIN_PASS:
+                        if arg[2] == 'host':
+                            self.vhost()
+                        if arg[2] == 'nick' and len(arg) == 4:
+                            self.nick(arg[3])
 
     def send(self, message):
         self.irc.send('PRIVMSG %s %s\r\n' % (self.channel, message)) \
@@ -181,29 +274,35 @@ class Boat():
         self.irc.send('MODE %s +x\r\n' % self.username) \
             if self.hostmask else self.irc.send('MODE %s -x\r\n' % self.username)
 
-    def dushi(self, message):
+    def kicked(self, user, channel):
+        self.join(channel)
+        self.send(random.choice(KICKS).replace('{USER}', user))
+
+    def post(self, data, uri='http://dushi.nattewasbeer.nl/aapje'):
         try:
-            request = requests.request('POST', 'http://dushi.nattewasbeer.nl/aapje',
+            request = requests.request('POST', uri,
                                        timeout=4.000,
                                        headers={
                                            "User-Agent": "dushiBot",
                                            "Content-Type": "application/x-www-form-urlencoded"},
                                        allow_redirects=False,
-                                       data='INPUT=%s' % message)
+                                       data=data)
         except requests.exceptions.Timeout:
             return {'RESULT': 'servert plat'}
+        except:
+            return {'RESULT': 'server unreachable'}
         return json.loads(request.content) if request.status_code == 200 else False
 
     def parse(self, data):
         if data.startswith(':'):
             try:
                 s = data.split('!', 1)
-                return {'user': s[0],
-                        'cmd': s[1].split(' ')[1],
-                        'args': [z for z in s[1].replace('\r\n', '').split(' ')[2:] if z]
-                }
+                return s[0],\
+                       s[1].split(' ')[1],\
+                       [z for z in
+                        s[1].replace('\r\n', '').split(' ')[2:] if z]
             except:
-                pass
+                return None, None, None # !!!
 
     def nickthread(self):
         while True:
@@ -216,27 +315,27 @@ class Boat():
                     found = True
             time.sleep(timeout)
 
-NICKS = ['zemmel', 'sahbi', 'wasbeer', 'dushi', 'lobbi',
-         'rickeyG', 'ronnieP', 'cyberzemmel', 'chickie', 'skotoe',
-         'shoppa', 'monie_G', 'OG', 'fa2', 'bezem', 'fatima']
+NICKS = ['zemmel', 'sahbi', 'wasbeer', 'dushi', 'lobbi', 'brennoW',
+         'rickeyG', 'ronnieP', 'cyberzemmel', 'chickie', 'fiveO',
+         'shoppa', 'monie_G', 'OG', 'fa2', 'bezem', 'skeer']
 
+RESPONSES = [['waz met jou', ['waz met deze', 'waz met die']],
+             ['waz met deze', ['waz met jou', 'waz met die']],
+             ['waz met die', ['waz met deze', 'waz met jou']],
+             ['waz met haar', ['waz met die sma', 'weenie']],
+             ['waz met hem', ['waz met die zemmel', 'weenie']],
+             ['wat is deze', ['waz met die?', 'zib in je zhina', 'waz met jou']],
+             ['skeere tijden', ['w0rd', 'no munnie??', 'ait']],
+             ['skeer', ['zelluf skeer G', 'ewa', 'o']],
+             ['a zemmel', ['dez ezedjief ek tabra a zemml']],
+             ['zemmel', ['o', 'bnice']],
+             ['jwz', ['iwz']],
+             ['jwt', ['iwz']],
+             ['iwz', ['jwt', 'jwz']]]
 
-RESPONSES = {'waz met jou': 'waz met deze',
-             'waz met deze': 'waz met jou',
-             'waz met die': 'waz met deze',
-             'waz met haar': 'waz met die sma',
-             'wat is deze': 'waz met die?',
-             'skeere tijden': 'w0rd',
-             'wat is mis met jou': 'waz met jou',
-             'skeer': 'j4 G',
-             'a zemmel': 'dez ezedjief ek tabra a zemml',
-             'zemmel': 'o',
-             'jwz': 'iwz',
-             'jwt': 'iwz',
-             }
+RESPONSES_HI = ['y0w','j0w','ewa','sup','fakka']
 
-
-KICKS = ['wholla', 'ewa', 'lief doen', 'NORMAAL DOEN', 'ohai', 'waz met deze', 'waz met die', '...', 'k', ':((((']
+KICKS = ['wholla', 'ewa', 'lief doen {USER}', 'NORMAAL DOEN {USER}', 'ohai', 'waz met deze {USER}', 'waz met die', '...', 'k', 'A {USER} zEmMel']
 
 if __name__ == '__main__':
     print spam
@@ -251,6 +350,6 @@ if __name__ == '__main__':
                  host=args.host,
                  channel=args.channel,
                  port=args.port,
-                 debug=VERBOSE)
+                 debug=DEBUG)
 
     dushi.doe_ding()
