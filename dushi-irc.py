@@ -45,7 +45,7 @@ CMD_SET = '%s+' % CMD
 CMD_UNSET = '%s-' % CMD
 CMD_GET = '%s?' % CMD
 
-# dit hieronder niet veranderen
+# dit hieronder niet veranderen!
 DIRECT_APIS = []
 API_PASS = ''
 
