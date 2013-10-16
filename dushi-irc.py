@@ -20,7 +20,7 @@ spam = '''\033[92m
  |   \__,_/\__,_/____/_/ /_/_(_) .___/\__, /     /_/_/   \___/     |
  |              %s           /_/    /____/                        |
  | %s                                               %s           |
- |    jeweet gew0n tawn2lauwe ircbots voor die \033[93mekte ekte\033[92m chans     |
+ |                Een aanwist voor \033[93melk\033[92m irc kanaal!                 |
  |                         -}bam G{-                               |
  +-----------------------------------------------------------------+
         | USaGe: ./%s [host] [port] [channel]            |
@@ -37,6 +37,7 @@ USER = 'trolletje'
 IDENT = 'bontkraagIRC'
 PORT = 6667
 DEBUG = True
+API = 'http://dushi.nattewasbeer.nl/aapje'
 
 CMD = '!dushi'
 CMD_TRANSLATE = CMD
@@ -45,7 +46,7 @@ CMD_UNSET = '%s-' % CMD
 CMD_GET = '%s?' % CMD
 
 # dit hieronder niet veranderen
-APIS = []
+DIRECT_APIS = []
 API_PASS = ''
 
 class colors:
@@ -138,14 +139,10 @@ class Boat():
         if user and cmd and arg:
             user = user[1:] if user.startswith(':') else user
 
-            # if cmd == 'JOIN':
-            #     if self.username == user:
-            #         self.send('eh')
-
             if cmd == 'KICK':
                 if self.username == arg[1]:
-                    self.kicked(user, data)
-            if cmd == 'PRIVMSG' \
+                    self.kicked(user, arg[0])
+            elif cmd == 'PRIVMSG' \
                 and arg[0] == self.channel \
                 and not user == self.username:
 
@@ -154,27 +151,28 @@ class Boat():
 
                 if arg[1] == CMD_TRANSLATE:
                     if len(arg) < 3:
-                        self.send('zelluf')
+                        self.send('Zelluf.')
                         return
-                    x = self.post('INPUT=%s' % msg[len(CMD_TRANSLATE):]) \
+
+                    x = self.post('INPUT=%s' % msg[len(CMD_TRANSLATE):].strip()) \
                         if len(msg) >= len(CMD_TRANSLATE) + 3 else False
 
                     self.send('-!- ' + x['RESULT']) \
                         if x and not 'ERROR' in x and 'RESULT' in x else None
 
-                elif arg[1] == CMD_GET and APIS: # to-do: alphanummeric only
+                elif arg[1] == CMD_GET and DIRECT_APIS: # to-do: alphanummeric only
                     msg = msg[len(CMD_GET):]
 
                     if not msg.startswith(' '):
-                        self.send('JAWAT')
+                        self.send('JaWat')
                         return
 
                     k = msg[1:]
                     if len(k) <= 2:
-                        self.send('te kort.')
+                        self.send('Te kort.')
                         return
 
-                    for url in APIS:
+                    for url in DIRECT_APIS:
                         r = self.post('PASS=%s&GET=%s' % (API_PASS, k), url)
                         if r == 'NONE':
                             self.send('Dushi voor \'%s\' niet gevonden.' % k)
@@ -188,7 +186,7 @@ class Boat():
                             return
                     return
 
-                elif arg[1] == CMD_UNSET and APIS:
+                elif arg[1] == CMD_UNSET and DIRECT_APIS:
                     msg = msg[len(CMD_UNSET):]
 
                     if not msg.startswith(' ') or len(msg[1:].split(' ', 2)) != 2:
@@ -205,7 +203,7 @@ class Boat():
                         self.send('%s: vrind, hoe is \'%s\' een nummer?' % (user, v))
                         return
                     finally:
-                        for url in APIS:
+                        for url in DIRECT_APIS:
                             r = self.post('PASS=%s&UNSET=%s %s' % (API_PASS, k, v), url)
                             if r == 'NOT FOUND':
                                 self.send('Key of nummer niet gevonden.')
@@ -213,7 +211,7 @@ class Boat():
                             else:
                                 self.send('Bam.')
 
-                elif arg[1] == CMD_SET and APIS:
+                elif arg[1] == CMD_SET and DIRECT_APIS:
                     if len(msg) >= len(CMD_SET) + 3:
                         msg = msg[len(CMD_SET):]
 
@@ -229,7 +227,7 @@ class Boat():
                         if len(k) >= 15 or len(v) >= 15:
                             self.send('doe es kortere defs submitten %s G' % user)
 
-                        for url in APIS:
+                        for url in DIRECT_APIS:
                             r = self.post('PASS=%s&SET=%s=%s' % (API_PASS, k, v), url)
                             if r == 'DUPLICATE':
                                 self.send('Duplicate.')
@@ -278,7 +276,7 @@ class Boat():
         self.join(channel)
         self.send(random.choice(KICKS).replace('{USER}', user))
 
-    def post(self, data, uri='http://dushi.nattewasbeer.nl/aapje'):
+    def post(self, data, uri=API):
         try:
             request = requests.request('POST', uri,
                                        timeout=4.000,
@@ -287,11 +285,11 @@ class Boat():
                                            "Content-Type": "application/x-www-form-urlencoded"},
                                        allow_redirects=False,
                                        data=data)
+            return json.loads(request.content) if request.status_code == 200 else False
         except requests.exceptions.Timeout:
             return {'RESULT': 'servert plat'}
         except:
             return {'RESULT': 'server unreachable'}
-        return json.loads(request.content) if request.status_code == 200 else False
 
     def parse(self, data):
         if data.startswith(':'):
@@ -335,7 +333,7 @@ RESPONSES = [['waz met jou', ['waz met deze', 'waz met die']],
 
 RESPONSES_HI = ['y0w','j0w','ewa','sup','fakka']
 
-KICKS = ['wholla', 'ewa', 'lief doen {USER}', 'NORMAAL DOEN {USER}', 'ohai', 'waz met deze {USER}', 'waz met die', '...', 'k', 'A {USER} zEmMel']
+KICKS = ['wholla', 'ewa', 'lief doen {USER}', 'sup {USER}', 'ohai', '{USER}: waz met deze', '{USER}: waz met die', 'wasbeer {USER}', 'k', 'A {USER} zEmMel']
 
 if __name__ == '__main__':
     print spam
