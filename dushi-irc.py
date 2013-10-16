@@ -1,5 +1,5 @@
 #!/usr/bin/python
-__version__ = "16 okt 2013"
+__version__ = "17 okt 2013"
 from threading import Thread
 from datetime import datetime
 import argparse
@@ -9,6 +9,29 @@ import json
 import sys
 import random
 import time
+import re
+
+# Disclaimer: Snelle & Vieze saus
+
+# veranderbaar
+ADMIN_PASS = 'CHANGE_ME'
+USER = 'trolletje'
+IDENT = 'bontkraagIRC'
+PORT = 6667
+DUSHI_CHANNEL = '#dushi'
+DEBUG = True
+
+# optioneel
+CMD = '!dushi'
+CMD_TRANSLATE = CMD
+CMD_SET = '%s+' % CMD
+CMD_UNSET = '%s-' % CMD
+CMD_GET = '%s?' % CMD
+
+# AFBLIJVEN!!1
+API = 'http://dushi.nattewasbeer.nl/aapje'
+DIRECT_APIS = []
+API_PASS = ''
 
 jwz = '\033[93mjwz\033[92m'
 spam = '''\033[92m
@@ -31,24 +54,6 @@ spam = '''\033[92m
 for a in ['|', '+', '-']:
     spam = spam.replace(a, '\033[94m%s\033[92m' % a)
 
-# veilig om te veranderen
-ADMIN_PASS = 'blabla'
-USER = 'trolletje'
-IDENT = 'bontkraagIRC'
-PORT = 6667
-DEBUG = True
-API = 'http://dushi.nattewasbeer.nl/aapje'
-
-CMD = '!dushi'
-CMD_TRANSLATE = CMD
-CMD_SET = '%s+' % CMD
-CMD_UNSET = '%s-' % CMD
-CMD_GET = '%s?' % CMD
-
-# dit hieronder niet veranderen!
-DIRECT_APIS = []
-API_PASS = ''
-
 class colors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -70,6 +75,8 @@ class Boat():
 
         self.nickthread = Thread(target=self.nickthread).start()
 
+        self.only_dushi_channel = False
+
         self.irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def log(self, *args, **kwargs):
@@ -80,6 +87,7 @@ class Boat():
         room = self.channel if room is None else room
 
         self.irc.send('JOIN %s\r\n' % room)
+        self.irc.send('JOIN %s\r\n' % DUSHI_CHANNEL) if DUSHI_CHANNEL else None
 
     def doe_ding(self):
         if self.debug:
@@ -142,55 +150,81 @@ class Boat():
             if cmd == 'KICK':
                 if self.username == arg[1]:
                     self.kicked(user, arg[0])
-            elif cmd == 'PRIVMSG' \
-                and arg[0] == self.channel \
-                and not user == self.username:
+            elif cmd == 'PRIVMSG' and not user == self.username:
+                if arg[0] == self.username and len(arg) >= 3:
+                    arg[1] = arg[1][1:]
+
+                    if arg[1] == ADMIN_PASS:
+                        if arg[2] == 'host':
+                            self.vhost()
+                        if arg[2] == 'nick' and len(arg) == 4:
+                            self.nick(arg[3])
+                        if arg[2] == 'priv':
+                            self.only_dushi_channel = False if self.only_dushi_channel else True
+                        if arg[2] == 'msg' and len(arg) >= 4:
+                            self.send(' '.join(arg[3:]), self.channel)
+                    return
+
+                if not arg[0] == self.channel and not arg[0] == DUSHI_CHANNEL:
+                    return
 
                 arg[1] = arg[1][1:]
                 msg = ' '.join(arg[1:])
 
                 if arg[1] == CMD_TRANSLATE:
                     if len(arg) < 3:
-                        self.send('Zelluf.')
+                        self.send('Zelluf.', arg[0])
                         return
 
                     x = self.post('INPUT=%s' % msg[len(CMD_TRANSLATE):].strip()) \
                         if len(msg) >= len(CMD_TRANSLATE) + 3 else False
 
-                    self.send('-!- ' + x['RESULT']) \
+                    self.send('-!- ' + x['RESULT'], arg[0]) \
                         if x and not 'ERROR' in x and 'RESULT' in x else None
+                    return
 
-                elif arg[1] == CMD_GET and DIRECT_APIS: # to-do: alphanummeric only
+                elif arg[1] == CMD_GET and DIRECT_APIS:
+                    if arg[0] == self.channel and self.only_dushi_channel:
+                        return
+
                     msg = msg[len(CMD_GET):]
 
                     if not msg.startswith(' '):
-                        self.send('JaWat')
+                        self.send('JaWat', arg[0])
                         return
 
                     k = msg[1:]
+                    k = re.sub(r'[^a-z0-9.-]', '', k)
+
                     if len(k) <= 2:
-                        self.send('Te kort.')
+                        self.send('Te kort.', arg[0])
                         return
 
                     for url in DIRECT_APIS:
                         r = self.post('PASS=%s&GET=%s' % (API_PASS, k), url)
-                        if r == 'NONE':
-                            self.send('Dushi voor \'%s\' niet gevonden.' % k)
-                            return
-                        else:
-                            keys = '%s:  ' % k
-                            for i in range(0, len(r)):
-                                keys += '%s. %s ' % (str(i), r[i])
 
-                            self.send(keys)
+                        if not r:
                             return
+                        elif r == 'NONE':
+                            self.send('Dushi voor \'%s\' niet gevonden.' % k, arg[0])
+                        elif 'RESULT' in r:
+                            self.send(r['RESULT'], arg[0])
+                        else:
+                            keys = '%s:  ' % k
+                            for i in range(0, len(r)):
+                                keys += '%s. %s ' % (str(i + 1), r[i])
+
+                            self.send(keys, arg[0])
                     return
 
                 elif arg[1] == CMD_UNSET and DIRECT_APIS:
+                    if arg[0] == self.channel and self.only_dushi_channel:
+                        return
+
                     msg = msg[len(CMD_UNSET):]
 
                     if not msg.startswith(' ') or len(msg[1:].split(' ', 2)) != 2:
-                        self.send('%s <key> <nummer>' % CMD_UNSET)
+                        self.send('%s <key> <nummer>' % CMD_UNSET, arg[0])
                         return
 
                     msg = msg[1:].split(' ', 2)
@@ -200,67 +234,71 @@ class Boat():
                     try:
                         v = int(v)
                     except:
-                        self.send('%s: vrind, hoe is \'%s\' een nummer?' % (user, v))
+                        self.send('vrind, hoe is \'%s\' een nummer?' % (v), arg[0])
                         return
-                    finally:
-                        for url in DIRECT_APIS:
-                            r = self.post('PASS=%s&UNSET=%s %s' % (API_PASS, k, v), url)
-                            if r == 'NOT FOUND':
-                                self.send('Key of nummer niet gevonden.')
-                                return
-                            else:
-                                self.send('Bam.')
+
+                    for url in DIRECT_APIS:
+                        r = self.post('PASS=%s&UNSET=%s %s' % (API_PASS, k, v), url)
+                        if not r:
+                            return
+                        elif r == 'NOT FOUND':
+                            self.send('Key of nummer niet gevonden.', arg[0])
+                            return
+                        elif r == 'OK':
+                            self.send('Verwijderd.', arg[0])
+                        elif r == 'ERROR':
+                            self.send('normaal doen %s ;@' % user, arg[0])
+                    return
 
                 elif arg[1] == CMD_SET and DIRECT_APIS:
-                    if len(msg) >= len(CMD_SET) + 3:
-                        msg = msg[len(CMD_SET):]
-
-                        if not msg.startswith(' '):
-                            self.send('%s, waz met deze' % user)
-                            return
-                        if not '=' in msg:
-                            self.send('Je vergat de \'=\', ei.')
-                            return
-
-                        k, v = msg.split('=', 1)
-
-                        if len(k) >= 15 or len(v) >= 15:
-                            self.send('doe es kortere defs submitten %s G' % user)
-
-                        for url in DIRECT_APIS:
-                            r = self.post('PASS=%s&SET=%s=%s' % (API_PASS, k, v), url)
-                            if r == 'DUPLICATE':
-                                self.send('Duplicate.')
-                            elif r == 'OK':
-                                self.send('Toegevoegdt.')
+                    if arg[0] == self.channel and self.only_dushi_channel:
                         return
-                    else:
-                        self.send('te weinig chars voor key ;@')
+
+                    msg = msg[len(CMD_SET):]
+
+                    if not msg.startswith(' '):
+                        self.send('Gebruik: %s <key>=<value>' % CMD_SET, arg[0])
                         return
+                    if not '=' in msg:
+                        self.send('Je vergat de \'=\', ei.', arg[0])
+                        return
+
+                    k, v = msg.split('=', 1)
+                    v = re.sub(r'[^a-z0-9.-]', '', v)
+
+                    if len(k) >= 15 or len(v) >= 15:
+                        self.send('Doe es kortere defs submitten.', arg[0])
+                        return
+                    if len(k) <= 2:
+                        self.send('Te weinig chars voor key ;@', arg[0])
+                        return
+                    elif len(v) <= 1:
+                        self.send('Te weinig chars voor val ;@', arg[0])
+                        return
+
+                    for url in DIRECT_APIS:
+                        r = self.post('PASS=%s&SET=%s=%s' % (API_PASS, k, v), url)
+                        if r == 'DUPLICATE':
+                            self.send('Duplicate.', arg[0])
+                        elif r == 'OK':
+                            self.send('Dushi toegevoegd.', arg[0])
+                    return
 
                 if arg[1].lower().startswith(self.username):
-                    self.send(random.choice(random.choice(RESPONSES_HI)))
+                    self.send(random.choice(RESPONSES_HI), arg[0])
                     return
-                elif self.username in msg.lower():
-                    self.send('zelluf')
+                elif self.username in msg:
+                    self.send('zelluf', arg[0])
                     return
 
                 for i in RESPONSES:
                     if i[0] in msg.lower():
-                        self.send(random.choice(i[1]))
+                        self.send(random.choice(i[1]), arg[0])
                         return
-            else:
-                if arg[0] == self.username and len(arg) >= 3:
-                    arg[1] = arg[1][1:]
 
-                    if arg[1] == ADMIN_PASS:
-                        if arg[2] == 'host':
-                            self.vhost()
-                        if arg[2] == 'nick' and len(arg) == 4:
-                            self.nick(arg[3])
 
-    def send(self, message):
-        self.irc.send('PRIVMSG %s %s\r\n' % (self.channel, message)) \
+    def send(self, message, target):
+        self.irc.send('PRIVMSG %s %s\r\n' % (target, message)) \
             if self.connected else None
 
     def nick(self, username):
@@ -274,12 +312,12 @@ class Boat():
 
     def kicked(self, user, channel):
         self.join(channel)
-        self.send(random.choice(KICKS).replace('{USER}', user))
+        self.send(random.choice(KICKS).replace('{USER}', user), channel)
 
     def post(self, data, uri=API):
         try:
             request = requests.request('POST', uri,
-                                       timeout=4.000,
+                                       timeout=3.000,
                                        headers={
                                            "User-Agent": "dushiBot",
                                            "Content-Type": "application/x-www-form-urlencoded"},
@@ -287,9 +325,9 @@ class Boat():
                                        data=data)
             return json.loads(request.content) if request.status_code == 200 else False
         except requests.exceptions.Timeout:
-            return {'RESULT': 'servert plat'}
+            return {'RESULT': 'servert beetje brak'}
         except:
-            return {'RESULT': 'server unreachable'}
+            return {'RESULT': 'servert dood'}
 
     def parse(self, data):
         if data.startswith(':'):
@@ -322,18 +360,19 @@ RESPONSES = [['waz met jou', ['waz met deze', 'waz met die']],
              ['waz met die', ['waz met deze', 'waz met jou']],
              ['waz met haar', ['waz met die sma', 'weenie']],
              ['waz met hem', ['waz met die zemmel', 'weenie']],
+             ['watz met', ['watz met deze', 'watz met die', 'watz met jou']],
              ['wat is deze', ['waz met die?', 'zib in je zhina', 'waz met jou']],
              ['skeere tijden', ['w0rd', 'no munnie??', 'ait']],
              ['skeer', ['zelluf skeer G', 'ewa', 'o']],
              ['a zemmel', ['dez ezedjief ek tabra a zemml']],
-             ['zemmel', ['o', 'bnice']],
+             ['zemmel', ['bezems', 'zemmeltjes', 'wholla?']],
              ['jwz', ['iwz']],
              ['jwt', ['iwz']],
              ['iwz', ['jwt', 'jwz']]]
 
 RESPONSES_HI = ['y0w','j0w','ewa','sup','fakka']
 
-KICKS = ['wholla', 'ewa', 'lief doen {USER}', 'sup {USER}', 'ohai', '{USER}: waz met deze', '{USER}: waz met die', 'wasbeer {USER}', 'k', 'A {USER} zEmMel']
+KICKS = ['wholla', 'normaal doen', 'lief doen {USER}', 'sup {USER}', 'ohai', 'waz met deze {USER}', 'waz met die {USER}', 'wasbeer {USER}', 'k', 'A {USER} zEmMel']
 
 if __name__ == '__main__':
     print spam

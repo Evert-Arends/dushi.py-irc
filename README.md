@@ -1,6 +1,6 @@
 dushi.py-irc
 ========
-![ScreenShot](http://i.imgur.com/SLEepUK.png)
+![ScreenShot](http://i.imgur.com/i1eOh24.png)
 
 Jwz:
     ~$ python dushi-irc.py HOST PORT CHANNEL'
