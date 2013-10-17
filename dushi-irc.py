@@ -207,15 +207,17 @@ class Boat():
                             return
                         elif r == 'NONE':
                             self.send('Dushi voor \'%s\' niet gevonden.' % k, arg[0])
+                            return
                         elif 'RESULT' in r:
                             self.send(r['RESULT'], arg[0])
+                            return
                         else:
                             keys = '%s:  ' % k
                             for i in range(0, len(r)):
                                 keys += '%s. %s ' % (str(i + 1), r[i])
 
                             self.send(keys, arg[0])
-                    return
+                        return
 
                 elif arg[1] == CMD_UNSET and DIRECT_APIS:
                     if arg[0] == self.channel and self.only_dushi_channel:
@@ -237,6 +239,7 @@ class Boat():
                         self.send('vrind, hoe is \'%s\' een nummer?' % (v), arg[0])
                         return
 
+                    skip = False
                     for url in DIRECT_APIS:
                         r = self.post('PASS=%s&UNSET=%s %s' % (API_PASS, k, v), url)
                         if not r:
@@ -245,9 +248,11 @@ class Boat():
                             self.send('Key of nummer niet gevonden.', arg[0])
                             return
                         elif r == 'OK':
-                            self.send('Verwijderd.', arg[0])
+                            self.send('Verwijderd.', arg[0]) if not skip else None
+                            skip = True
                         elif r == 'ERROR':
-                            self.send('normaal doen %s ;@' % user, arg[0])
+                            self.send('normaal doen %s ;@' % user, arg[0]) if not skip else None
+                            skip = True
                     return
 
                 elif arg[1] == CMD_SET and DIRECT_APIS:
@@ -276,12 +281,16 @@ class Boat():
                         self.send('Te weinig chars voor val ;@', arg[0])
                         return
 
+                    skip = False
                     for url in DIRECT_APIS:
                         r = self.post('PASS=%s&SET=%s=%s' % (API_PASS, k, v), url)
+
                         if r == 'DUPLICATE':
                             self.send('Duplicate.', arg[0])
+                            return
                         elif r == 'OK':
-                            self.send('Dushi toegevoegd.', arg[0])
+                            self.send('Dushi toegevoegd.', arg[0]) if not skip else None
+                            skip = True
                     return
 
                 if arg[1].lower().startswith(self.username):
@@ -338,7 +347,7 @@ class Boat():
                        [z for z in
                         s[1].replace('\r\n', '').split(' ')[2:] if z]
             except:
-                return None, None, None # !!!
+                return None, None, None  # NEIN NEIN NEIN !!!
 
     def nickthread(self):
         while True:
