@@ -143,13 +143,19 @@ class Boat():
             self.irc.send('EWA PONG!')
 
     def jwz(self, data):
+        parsed = self.parse(data)
+        if not parsed:
+            return
+
         user, cmd, arg = self.parse(data)
+
         if user and cmd and arg:
             user = user[1:] if user.startswith(':') else user
 
             if cmd == 'KICK':
                 if self.username == arg[1]:
                     self.kicked(user, arg[0])
+
             elif cmd == 'PRIVMSG' and not user == self.username:
                 if arg[0] == self.username and len(arg) >= 3:
                     arg[1] = arg[1][1:]
@@ -347,7 +353,7 @@ class Boat():
                        [z for z in
                         s[1].replace('\r\n', '').split(' ')[2:] if z]
             except:
-                return None, None, None  # NEIN NEIN NEIN !!!
+                return None  # NEIN NEIN NEIN !!!
 
     def nickthread(self):
         while True:
