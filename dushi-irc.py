@@ -200,7 +200,7 @@ class Boat():
                         return
 
                     k = msg[1:]
-                    k = re.sub(r'[^a-z0-9.-]', '', k)
+                    k = re.sub(r'[^a-z0-9.\'-]', '', k, flags=re.IGNORECASE)
 
                     if len(k) <= 2:
                         self.send('Te kort.', arg[0])
