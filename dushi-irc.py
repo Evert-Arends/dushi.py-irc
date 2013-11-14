@@ -311,8 +311,9 @@ class Boat():
                         self.send(random.choice(i[1]), arg[0])
                         return
 
-
     def send(self, message, target):
+        message = message.encode('utf-8')
+        target = target.encode('utf-8')
         self.irc.send('PRIVMSG %s %s\r\n' % (target, message)) \
             if self.connected else None
 
@@ -332,7 +333,7 @@ class Boat():
     def post(self, data, uri=API):
         try:
             request = requests.request('POST', uri,
-                                       timeout=3.000,
+                                       timeout=4.000,
                                        headers={
                                            "User-Agent": "dushiBot",
                                            "Content-Type": "application/x-www-form-urlencoded"},
