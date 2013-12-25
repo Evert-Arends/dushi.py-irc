@@ -3,6 +3,8 @@ __version__ = "17 okt 2013"
 from threading import Thread
 from datetime import datetime
 import argparse
+import operator
+import os
 import socket
 import requests
 import json
@@ -78,6 +80,29 @@ class Boat():
         self.only_dushi_channel = False
 
         self.irc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        self.karma = {}
+        self.parse_karma()
+
+    def write_karma(self):
+        f = open ('karma', 'wb')
+        for k, v in self.karma.iteritems():
+            f.write('%s:%s\n' % (k, str(v)))
+        f.close()
+
+    def parse_karma(self):
+        f = open ('karma', 'r')
+        a = f.readlines()
+        f.close()
+
+        for line in [z for z in a if z]:
+            line = line.replace('\n', '')
+
+            if ':' in line:
+                k, v  = line.split(':', 1)
+                k = k.replace(':', '')
+
+                self.karma[k] = int(v)
 
     def log(self, *args, **kwargs):
         color = kwargs['color'] if 'color' in kwargs else colors.OKGREEN
@@ -189,6 +214,43 @@ class Boat():
                         if x and not 'ERROR' in x and 'RESULT' in x else None
                     return
 
+                elif msg.startswith('!karma'):
+                    up = False
+                    down = False
+
+                    if msg[6:] == '^':
+                        up = True
+                    elif msg[6:] == '-':
+                        down = True
+
+                    if self.karma:
+                        a = sorted(self.karma.iteritems(), key=operator.itemgetter(1))[:5]
+
+                        for i in range(0, len(a)):
+                            self.send('%s: %s' % (a[i][0], str(a[i][1])), arg[0])
+                            print i
+                    else:
+                        self.send(':(' ,arg[0])
+
+                elif msg.endswith('++') or msg.endswith('--'):
+                    msg = msg[:-2]
+                    if len(msg) >= 14:
+                        self.send('Teveel chars :---)', arg[0])
+
+                    i = 0
+                    i += 1 if msg.endswith('++') else -1
+
+                    if msg in self.karma:
+                        self.karma[msg] += i
+                    else:
+                        self.karma[msg] = i
+
+                    self.write_karma()
+                    self.send('-!- %s voor \'%s\': %s ' % (
+                        'KankerRotSteentjes' if self.karma[msg] < 0 else 'Karma' , msg, str(self.karma[msg])
+                    ), arg[0])
+
+
                 elif arg[1] == CMD_GET and DIRECT_APIS:
                     if arg[0] == self.channel and self.only_dushi_channel:
                         return
@@ -277,7 +339,7 @@ class Boat():
                     k, v = msg.split('=', 1)
                     v = re.sub(r'[^a-z0-9.-]', '', v)
 
-                    if len(k) >= 15 or len(v) >= 15:
+                    if len(k) >= 25 or len(v) >= 25:
                         self.send('Doe es kortere defs submitten.', arg[0])
                         return
                     if len(k) <= 2:
@@ -371,24 +433,31 @@ NICKS = ['zemmel', 'sahbi', 'wasbeer', 'dushi', 'lobbi', 'brennoW',
          'rickeyG', 'ronnieP', 'cyberzemmel', 'chickie', 'fiveO',
          'shoppa', 'monie_G', 'OG', 'fa2', 'bezem', 'skeer']
 
-RESPONSES = [['waz met jou', ['waz met deze', 'waz met die']],
-             ['waz met deze', ['waz met jou', 'waz met die']],
-             ['waz met die', ['waz met deze', 'waz met jou']],
+RESPONSES = [['waz met jou', ['waz met deze', 'waz met die', 'weenie']],
+             ['waz met deze', ['waz met jou', 'waz met die', 'weenie']],
+             ['waz met die', ['waz met deze', 'waz met jou', 'weenie']],
              ['waz met haar', ['waz met die sma', 'weenie']],
              ['waz met hem', ['waz met die zemmel', 'weenie']],
              ['watz met', ['watz met deze', 'watz met die', 'watz met jou']],
              ['wat is deze', ['waz met die?', 'zib in je zhina', 'waz met jou']],
              ['skeere tijden', ['w0rd', 'no munnie??', 'ait']],
-             ['skeer', ['zelluf skeer G', 'ewa', 'o']],
+             ['skeer', ['zelluf skeer G', 'ewa', 'o', 'pretty skeer', 'yep']],
              ['a zemmel', ['dez ezedjief ek tabra a zemml']],
-             ['zemmel', ['bezems', 'zemmeltjes', 'wholla?']],
+             ['zemmel', ['bezems', 'zemmeltjes', 'wholla', '']],
              ['jwz', ['iwz']],
              ['jwt', ['iwz']],
+             ['jonko',['kugh kugh', '420 bro all day everyday']],
+             ['wow', ['many waz met jou', 'much confusion', 'amaze waz met deze', 'w0w', 'much dushi', 'many dushi', 'amaze dushi']],
+             ['bam', ['zonne grote knal!', 'b00m', 'BAAAAM']],
+             ['smatje', ['hossel die smatje!', 'hossel-ze!', 'zeg ben jij de hosselman?', 'hosselen!!1', 'ait hossel die smatje!!']],
+             ['zelluf', ['zellufzelluf', 'jeweetzelluf', 'zelf*']],
              ['iwz', ['jwt', 'jwz']]]
 
 RESPONSES_HI = ['y0w','j0w','ewa','sup','fakka']
 
 KICKS = ['wholla', 'normaal doen', 'lief doen {USER}', 'sup {USER}', 'ohai', 'waz met deze {USER}', 'waz met die {USER}', 'wasbeer {USER}', 'k', 'A {USER} zEmMel']
+
+os.popen('touch karma') if not os.path.isfile('karma') else None
 
 if __name__ == '__main__':
     print spam
